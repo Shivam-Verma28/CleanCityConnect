@@ -3,20 +3,24 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CleanCity Connect API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: storage
+  - name: users
+  - name: reports
+  - name: rewards
+  - name: admin
+  - name: stats
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +28,615 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /storage/uploads/request-url:
+    post:
+      operationId: requestUploadUrl
+      tags: [storage]
+      summary: Request a presigned upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUploadUrlBody"
+      responses:
+        "200":
+          description: Upload URL granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestUploadUrlResponse"
+
+  /me:
+    get:
+      operationId: getMe
+      tags: [users]
+      summary: Get current user profile, points and role
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /reports:
+    get:
+      operationId: listMyReports
+      tags: [reports]
+      summary: List the signed-in user's reports
+      responses:
+        "200":
+          description: My reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Submit a new garbage report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportBody"
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /reports/map:
+    get:
+      operationId: listMapReports
+      tags: [reports]
+      summary: All reports for the public map (basic fields only)
+      responses:
+        "200":
+          description: Map markers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MapReport"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get a single report
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/reports:
+    get:
+      operationId: adminListReports
+      tags: [admin]
+      summary: Admin — list every report with reporter info
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            enum: [pending, verified, rejected]
+      responses:
+        "200":
+          description: All reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/reports/{id}/decision:
+    post:
+      operationId: adminDecideReport
+      tags: [admin]
+      summary: Admin — verify or reject a report
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideReportBody"
+      responses:
+        "200":
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReport"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /admin/users:
+    get:
+      operationId: adminListUsers
+      tags: [admin]
+      summary: Admin — list all users
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/users/{id}/role:
+    post:
+      operationId: adminSetUserRole
+      tags: [admin]
+      summary: Admin — promote or demote a user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetRoleBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /rewards/catalog:
+    get:
+      operationId: listRewards
+      tags: [rewards]
+      summary: List available rewards in the catalog
+      responses:
+        "200":
+          description: Rewards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reward"
+
+  /rewards/redemptions:
+    get:
+      operationId: listMyRedemptions
+      tags: [rewards]
+      summary: List the signed-in user's redemptions
+      responses:
+        "200":
+          description: My redemptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Redemption"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: redeemReward
+      tags: [rewards]
+      summary: Redeem a reward using accumulated points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemBody"
+      responses:
+        "201":
+          description: Redemption created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Redemption"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /stats/overview:
+    get:
+      operationId: getOverviewStats
+      tags: [stats]
+      summary: Public homepage stats — totals across the whole community
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewStats"
+
+  /stats/admin:
+    get:
+      operationId: getAdminStats
+      tags: [stats, admin]
+      summary: Admin dashboard stats — pending counts, today's reports, top reporters
+      responses:
+        "200":
+          description: Admin stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
 components:
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
 
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    RequestUploadUrlBody:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+        contentType:
+          type: string
+
+    RequestUploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+
+    Me:
+      type: object
+      required: [id, displayName, role, points, totalReports, verifiedReports, pendingReports]
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        email:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [user, admin]
+        points:
+          type: integer
+        totalReports:
+          type: integer
+        verifiedReports:
+          type: integer
+        pendingReports:
+          type: integer
+
+    Report:
+      type: object
+      required: [id, imagePath, locationLabel, latitude, longitude, description, status, pointsAwarded, createdAt]
+      properties:
+        id:
+          type: integer
+        imagePath:
+          type: string
+        locationLabel:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, verified, rejected]
+        pointsAwarded:
+          type: integer
+        adminNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: ["string", "null"]
+          format: date-time
+
+    MapReport:
+      type: object
+      required: [id, latitude, longitude, status, locationLabel, createdAt]
+      properties:
+        id:
+          type: integer
+        latitude:
+          type: number
+        longitude:
+          type: number
+        status:
+          type: string
+          enum: [pending, verified, rejected]
+        locationLabel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminReport:
+      type: object
+      required: [id, imagePath, locationLabel, latitude, longitude, description, status, pointsAwarded, createdAt, reporterName, reporterId]
+      properties:
+        id:
+          type: integer
+        imagePath:
+          type: string
+        locationLabel:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+        description:
+          type: string
+        status:
+          type: string
+          enum: [pending, verified, rejected]
+        pointsAwarded:
+          type: integer
+        adminNote:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        decidedAt:
+          type: ["string", "null"]
+          format: date-time
+        reporterId:
+          type: integer
+        reporterName:
+          type: string
+        reporterEmail:
+          type: ["string", "null"]
+
+    AdminUser:
+      type: object
+      required: [id, displayName, role, points, totalReports, verifiedReports, createdAt]
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        email:
+          type: ["string", "null"]
+        role:
+          type: string
+          enum: [user, admin]
+        points:
+          type: integer
+        totalReports:
+          type: integer
+        verifiedReports:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateReportBody:
+      type: object
+      required: [imagePath, locationLabel, latitude, longitude, description]
+      properties:
+        imagePath:
+          type: string
+        locationLabel:
+          type: string
+          minLength: 1
+        latitude:
+          type: number
+        longitude:
+          type: number
+        description:
+          type: string
+          minLength: 1
+
+    DecideReportBody:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [verified, rejected]
+        adminNote:
+          type: string
+        pointsAwarded:
+          type: integer
+
+    SetRoleBody:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [user, admin]
+
+    Reward:
+      type: object
+      required: [id, name, description, pointsCost, category, available]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        pointsCost:
+          type: integer
+        category:
+          type: string
+        available:
+          type: boolean
+
+    Redemption:
+      type: object
+      required: [id, rewardId, rewardName, pointsSpent, code, createdAt]
+      properties:
+        id:
+          type: integer
+        rewardId:
+          type: integer
+        rewardName:
+          type: string
+        pointsSpent:
+          type: integer
+        code:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    RedeemBody:
+      type: object
+      required: [rewardId]
+      properties:
+        rewardId:
+          type: integer
+
+    OverviewStats:
+      type: object
+      required: [totalReports, verifiedReports, pendingReports, totalPointsAwarded, contributors]
+      properties:
+        totalReports:
+          type: integer
+        verifiedReports:
+          type: integer
+        pendingReports:
+          type: integer
+        totalPointsAwarded:
+          type: integer
+        contributors:
+          type: integer
+
+    AdminStats:
+      type: object
+      required: [pendingCount, verifiedToday, rejectedToday, totalUsers, topReporters]
+      properties:
+        pendingCount:
+          type: integer
+        verifiedToday:
+          type: integer
+        rejectedToday:
+          type: integer
+        totalUsers:
+          type: integer
+        topReporters:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopReporter"
+
+    TopReporter:
+      type: object
+      required: [id, displayName, points, verifiedReports]
+      properties:
+        id:
+          type: integer
+        displayName:
+          type: string
+        points:
+          type: integer
+        verifiedReports:
+          type: integer

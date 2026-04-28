@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "CleanCity Connect"
+version = "1.0.0"
+id = "artifacts/cleancity"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21713
+
+[services.development]
+run = "pnpm --filter @workspace/cleancity run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cleancity", "run", "build" ]
+publicDir = "artifacts/cleancity/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21713"
+BASE_PATH = "/"

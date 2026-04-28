@@ -1,0 +1,89 @@
+Create a modern, responsive full-stack web application called "CleanCity Connect".
+
+🌍 Purpose:
+CleanCity Connect allows users to report garbage issues by uploading images. Reports are verified, and users receive reward points. The system helps authorities maintain cleanliness efficiently.
+
+🎯 Tech Stack:
+- Frontend: React.js (with functional components and hooks)
+- Backend: Node.js + Express.js
+- Database: MongoDB
+- Image Upload: Cloudinary or Multer
+- Authentication: JWT-based login/signup
+
+📌 Features Required:
+
+1. User Authentication:
+   - Signup/Login pages
+   - JWT authentication
+   - Protected routes
+   - Logout functionality
+
+2. User Dashboard:
+   - Display user info
+   - Show total reward points
+   - Show report history
+
+3. Report Garbage:
+   - Upload garbage image
+   - Enter location (text or map)
+   - Add description
+   - Submit report
+
+4. Report Verification System:
+   - Admin can mark reports as "Verified" or "Rejected"
+   - Only verified reports earn rewards
+
+5. Reward System:
+   - Points assigned after verification
+   - Show points in dashboard
+   - Simple reward redemption UI (no leaderboard)
+
+6. Admin Panel:
+   - View all reports
+   - Approve/Reject reports
+   - Manage users
+
+7. Map Integration:
+   - Use Google Maps or Leaflet
+   - Display reported garbage locations
+
+8. UI/UX Design:
+   - Clean, eco-friendly green theme
+   - Fully responsive (mobile + desktop)
+   - Pages required:
+     - Home (Hero + Features + How it Works)
+     - Login/Signup
+     - Dashboard
+     - Report Page
+     - Admin Panel
+
+9. Notifications:
+   - Show alerts for submission and verification status
+
+📂 Folder Structure:
+- client (React app)
+  - components/
+  - pages/
+  - services/
+- server
+  - routes/
+  - controllers/
+  - models/
+
+🎨 Design Guidelines:
+- Use modern UI (cards, navbar, buttons)
+- Smooth transitions and animations
+- Clean layout with proper spacing
+
+⚡ Additional Requirements:
+- No leaderboard feature
+- Use Axios for API calls
+- Use React Router for navigation
+- Use Context API or Redux for state management
+
+📦 Output Required:
+- Complete frontend React code
+- Backend API with Express
+- MongoDB schema models
+- API integration
+- Step-by-step instructions to run locally
