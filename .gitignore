@@ -59,6 +59,7 @@ Thumbs.db
 # Local storage
 storage/
 artifacts/api-server/storage/
+attached_assets/
 
 # Tool data
 .gemini/
