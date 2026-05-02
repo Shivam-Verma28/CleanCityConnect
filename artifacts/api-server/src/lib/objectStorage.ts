@@ -1,6 +1,8 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Readable } from "stream";
 import { randomUUID } from "crypto";
+import fs from "fs";
+import path from "path";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -11,23 +13,29 @@ import {
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
+// Fallback for local development when Google Cloud Storage / Replit Sidecar is not available
+export let objectStorageClient: Storage | null = null;
+try {
+  objectStorageClient = new Storage({
+    credentials: {
+      audience: "replit",
+      subject_token_type: "access_token",
+      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+      type: "external_account",
+      credential_source: {
+        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+        format: {
+          type: "json",
+          subject_token_field_name: "access_token",
+        },
       },
+      universe_domain: "googleapis.com",
     },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+    projectId: "local-dev",
+  });
+} catch (e) {
+  console.warn("Could not initialize Google Cloud Storage client, using local fallback");
+}
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -70,10 +78,20 @@ export class ObjectStorageService {
     return dir;
   }
 
-  async searchPublicObject(filePath: string): Promise<File | null> {
+  async searchPublicObject(filePath: string): Promise<File | string | null> {
     for (const searchPath of this.getPublicObjectSearchPaths()) {
       const fullPath = `${searchPath}/${filePath}`;
 
+      if (!process.env.REPL_ID) {
+        // Local path check
+        const localPath = path.join(process.cwd(), "storage", fullPath);
+        if (fs.existsSync(localPath)) {
+          return localPath;
+        }
+        continue;
+      }
+
+      if (!objectStorageClient) continue;
       const { bucketName, objectName } = parseObjectPath(fullPath);
       const bucket = objectStorageClient.bucket(bucketName);
       const file = bucket.file(objectName);
@@ -87,7 +105,22 @@ export class ObjectStorageService {
     return null;
   }
 
-  async downloadObject(file: File, cacheTtlSec: number = 3600): Promise<Response> {
+  async downloadObject(file: File | string, cacheTtlSec: number = 3600): Promise<Response> {
+    if (typeof file === "string") {
+      // Local file download
+      const stats = await fs.promises.stat(file);
+      const nodeStream = fs.createReadStream(file);
+      const webStream = Readable.toWeb(nodeStream) as ReadableStream;
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/octet-stream", // Should ideally detect from extension
+        "Cache-Control": `public, max-age=${cacheTtlSec}`,
+        "Content-Length": String(stats.size),
+      };
+
+      return new Response(webStream, { headers });
+    }
+
     const [metadata] = await file.getMetadata();
     const aclPolicy = await getObjectAclPolicy(file);
     const isPublic = aclPolicy?.visibility === "public";
@@ -118,6 +151,11 @@ export class ObjectStorageService {
     const objectId = randomUUID();
     const fullPath = `${privateObjectDir}/uploads/${objectId}`;
 
+    if (!process.env.REPL_ID) {
+      // Local development fallback: return a URL to our own API
+      return `http://localhost:${process.env.PORT || 8000}/api/storage/local-upload/${objectId}`;
+    }
+
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
     return signObjectURL({
@@ -128,7 +166,7 @@ export class ObjectStorageService {
     });
   }
 
-  async getObjectEntityFile(objectPath: string): Promise<File> {
+  async getObjectEntityFile(objectPath: string): Promise<File | string> {
     if (!objectPath.startsWith("/objects/")) {
       throw new ObjectNotFoundError();
     }
@@ -144,6 +182,17 @@ export class ObjectStorageService {
       entityDir = `${entityDir}/`;
     }
     const objectEntityPath = `${entityDir}${entityId}`;
+
+    if (!process.env.REPL_ID) {
+      const localPath = path.join(process.cwd(), "storage", objectEntityPath);
+      if (fs.existsSync(localPath)) {
+        return localPath;
+      }
+      throw new ObjectNotFoundError();
+    }
+
+    if (!objectStorageClient) throw new ObjectNotFoundError();
+
     const { bucketName, objectName } = parseObjectPath(objectEntityPath);
     const bucket = objectStorageClient.bucket(bucketName);
     const objectFile = bucket.file(objectName);
@@ -156,6 +205,13 @@ export class ObjectStorageService {
 
   normalizeObjectEntityPath(rawPath: string): string {
     if (!rawPath.startsWith("https://storage.googleapis.com/")) {
+      // Local development fallback: if it's our own local-upload URL, normalize it
+      if (rawPath.includes("/api/storage/local-upload/")) {
+        const objectId = rawPath.split("/").pop();
+        if (objectId) {
+          return `/objects/uploads/${objectId}`;
+        }
+      }
       return rawPath;
     }
 

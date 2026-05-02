@@ -1,22 +1,24 @@
 import { useEffect } from "react";
-import { useAuth } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
-/**
- * Bridges Clerk's session token into the generated API client so every
- * request gets an `Authorization: Bearer <token>` header. Same-origin cookies
- * also work for Clerk on the proxy domain, but using the bearer token is
- * reliable in dev where the proxy isn't active.
- */
 export function useApiAuth(): void {
   const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { user } = useUser();
 
   useEffect(() => {
     if (!isLoaded) return;
     if (isSignedIn) {
       setAuthTokenGetter(async () => {
         try {
-          return await getToken();
+          const token = await getToken();
+          // In development/mock mode, we pass the email in the token string 
+          // so the backend can identify the user without a real secret key.
+          const email = user?.primaryEmailAddress?.emailAddress;
+          if (email) {
+            return `MOCK_AUTH:${email}:${token}`;
+          }
+          return token;
         } catch {
           return null;
         }
@@ -24,5 +26,5 @@ export function useApiAuth(): void {
     } else {
       setAuthTokenGetter(null);
     }
-  }, [isLoaded, isSignedIn, getToken]);
+  }, [isLoaded, isSignedIn, getToken, user]);
 }

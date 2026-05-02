@@ -25,7 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: me } = useGetMe();
-  const isAdmin = me?.role === "admin";
+  const isAdmin = me?.role === "admin" && me?.email === "shivamverma0328@gmail.com";
 
   const visibleItems = navItems.filter((i) => !i.adminOnly || isAdmin);
 

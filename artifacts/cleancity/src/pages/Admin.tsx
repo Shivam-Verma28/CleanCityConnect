@@ -40,13 +40,14 @@ import {
   Trophy,
   Loader2,
   ShieldAlert,
+  Maximize2,
 } from "lucide-react";
 import ReportImage from "@/components/ReportImage";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Admin() {
   const { data: me, isLoading: meLoading } = useGetMe();
-  const isAdmin = me?.role === "admin";
+  const isAdmin = me?.role === "admin" && me?.email === "shivamverma0328@gmail.com";
 
   if (meLoading) {
     return (
@@ -185,6 +186,10 @@ function ReportsPanel() {
   const [adminNote, setAdminNote] = useState("");
   const [points, setPoints] = useState("10");
 
+  const [previewImage, setPreviewImage] = useState<{ url: string; alt: string } | null>(
+    null,
+  );
+
   async function applyDecision() {
     if (!decision) return;
     try {
@@ -250,11 +255,21 @@ function ReportsPanel() {
             className="flex flex-wrap items-start gap-4 rounded-xl border border-card-border bg-card p-4"
             data-testid={`admin-report-${r.id}`}
           >
-            <ReportImage
-              path={r.imagePath}
-              alt={r.locationLabel}
-              className="h-24 w-32 flex-shrink-0 rounded-lg object-cover"
-            />
+            <div
+              className="group relative cursor-zoom-in"
+              onClick={() => setPreviewImage({ url: r.imagePath, alt: r.locationLabel })}
+            >
+              <ReportImage
+                path={r.imagePath}
+                alt={r.locationLabel}
+                className="h-24 w-32 flex-shrink-0 rounded-lg object-cover transition-opacity group-hover:opacity-90"
+              />
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="rounded-full bg-black/50 p-2 text-white backdrop-blur-sm">
+                  <Maximize2 className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-semibold">{r.locationLabel}</h3>
@@ -304,7 +319,7 @@ function ReportsPanel() {
                     id: r.id,
                     name: r.reporterName,
                     decision: "rejected",
-                  })
+                    })
                 }
                 disabled={r.status === "rejected"}
                 data-testid={`button-reject-${r.id}`}
@@ -317,6 +332,7 @@ function ReportsPanel() {
         ))}
       </CardContent>
 
+      {/* Report Decision Dialog */}
       <Dialog open={!!decision} onOpenChange={(o) => !o && setDecision(null)}>
         <DialogContent>
           <DialogHeader>
@@ -372,9 +388,25 @@ function ReportsPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImage} onOpenChange={(o) => !o && setPreviewImage(null)}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          {previewImage && (
+            <div className="relative aspect-video w-full bg-black/5 flex items-center justify-center">
+              <ReportImage
+                path={previewImage.url}
+                alt={previewImage.alt}
+                className="max-h-full max-w-full object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
+
 
 function UsersPanel() {
   const { data, isLoading } = useAdminListUsers();

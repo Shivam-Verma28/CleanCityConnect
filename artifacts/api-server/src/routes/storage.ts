@@ -1,5 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
+import fs from "fs";
+import path from "path";
+import { pipeline } from "stream/promises";
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -40,6 +43,59 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   } catch (error) {
     req.log.error({ err: error }, "Error generating upload URL");
     res.status(500).json({ error: "Failed to generate upload URL" });
+  }
+});
+
+
+/**
+ * PUT /storage/local-upload/:objectId
+ *
+ * Local development fallback for file uploads.
+ * Saves the raw request body as a file in the local storage directory.
+ */
+router.put("/storage/local-upload/:objectId", async (req: Request, res: Response) => {
+  try {
+    const { objectId } = req.params;
+    const privateDir = objectStorageService.getPrivateObjectDir();
+    const storageDir = path.join(process.cwd(), "storage", privateDir, "uploads");
+
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+
+    const filePath = path.join(storageDir, objectId);
+    const writeStream = fs.createWriteStream(filePath);
+
+    await pipeline(req, writeStream);
+
+    res.status(200).json({ success: true, objectPath: `/objects/uploads/${objectId}` });
+  } catch (error) {
+    req.log.error({ err: error }, "Error handling local upload");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * GET /storage/local-upload/:objectId
+ *
+ * Fallback to serve files from local-upload if they haven't been normalized.
+ */
+router.get("/storage/local-upload/:objectId", async (req: Request, res: Response) => {
+  try {
+    const { objectId } = req.params;
+    const privateDir = objectStorageService.getPrivateObjectDir();
+    const filePath = path.join(process.cwd(), "storage", privateDir, "uploads", objectId);
+
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    const readStream = fs.createReadStream(filePath);
+    readStream.pipe(res);
+  } catch (error) {
+    req.log.error({ err: error }, "Error serving local upload");
+    res.status(500).json({ error: "Failed to serve file" });
   }
 });
 
